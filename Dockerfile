@@ -47,6 +47,7 @@ RUN cd /usr/src && mkdir couchdb \
  && sed -i '/CoffeeFiles = \[/a \                   "share/server/dreyfus.js",' support/build_js.escript \
  && sed -i '/sandbox.start =/a \    sandbox.index = Dreyfus.index;' share/server/loop.js \
  && sed -i '/var line, cmd, cmdkey, dispatch = {/a \    "index_doc": Dreyfus.indexDoc' share/server/loop.js \
+ && sed -i 's/;admin = mysecretpassword/admin = admin/g' rel/overlay/etc/local.ini \
  && printf "\n[dreyfus]\nname = {{clouseau_name}}\n" >> rel/overlay/etc/local.ini \
  && printf "\n[dreyfus]\nname = {{clouseau_name}}\n" >> rel/overlay/etc/default.ini \
  && sed -i '/"cluster_port": cluster_port,/a \            "clouseau_name": "clouseau%d@127.0.0.1" % (idx+1),' dev/run \
@@ -56,9 +57,17 @@ RUN cd /usr/src && mkdir couchdb \
  && rm -rf /var/lib/apt/lists/* \
  && chown -R couchdb:couchdb /usr/src/couchdb
 
-# Config
-sed -i 's/;admin = mysecretpassword/admin = admin/g' rel/overlay/etc/local.ini
+WORKDIR /usr/src
 
-WORKDIR /usr/src/couchdb
+# Install Clouseau
+RUN apt-get update -y && apt-get install -y --no-install-recommends maven \
+    && rm -rf /var/lib/apt/lists/* \
+    && git clone https://github.com/cloudant-labs/clouseau \
+    && cd clouseau \
+    && mvn clean install -DskipTests
 
-EXPOSE 15984 5984 4369 9100
+COPY ./start.sh /usr/src/
+
+EXPOSE 15984 5984
+
+CMD ["bash", "/usr/src/start.sh"]
