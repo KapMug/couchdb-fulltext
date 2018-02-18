@@ -66,8 +66,10 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends maven \
     && cd clouseau \
     && mvn clean install -DskipTests
 
-COPY ./start.sh /usr/src/
+# Install HAproxy & supervisor
+RUN apt-get update -y && apt-get install -y --no-install-recommends Haproxy supervisor \
+    && cp /usr/src/couchdb/rel/haproxy.cfg /etc/haproxy/haproxy.cfg
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-EXPOSE 15984 5984
-
-CMD ["bash", "/usr/src/start.sh"]
+EXPOSE 5984 15984 25984 35984
+CMD ["/usr/bin/supervisord"]
