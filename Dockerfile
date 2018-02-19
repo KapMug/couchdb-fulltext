@@ -58,8 +58,7 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends maven \
   && mvn clean install -DskipTests
 
 # Install HAproxy & supervisor
-RUN apt-get update -y && apt-get install -y --no-install-recommends Haproxy supervisor \
-  && cp /usr/src/couchdb/rel/haproxy.cfg /etc/haproxy/haproxy.cfg
+RUN apt-get update -y && apt-get install -y --no-install-recommends Haproxy supervisor
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 WORKDIR /usr/src/couchdb
