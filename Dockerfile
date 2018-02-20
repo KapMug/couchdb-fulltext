@@ -1,5 +1,6 @@
 FROM debian:jessie
-ENV COUCHDB_VERSION 2.1.1
+ENV COUCHDB_VERSION=2.1.1 \
+    MAVEN_VERSION=3.2.5
 
 # Add CouchDB user account
 RUN groupadd -r couchdb && useradd -d /usr/src/couchdb -g couchdb couchdb
@@ -14,7 +15,13 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     libicu52 \
     libmozjs185-1.0 \
     openssl \
+    git \
+    python3 \
+    supervisor \
+  && ln -s /usr/bin/python3 /usr/bin/python \
   && rm -rf /var/lib/apt/lists/*
+
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 RUN buildDeps=' \
     apt-transport-https \
@@ -27,9 +34,6 @@ RUN buildDeps=' \
     make \
   ' \
  && apt-get update -y -qq && apt-get install -y --no-install-recommends $buildDeps
-
-RUN apt-get update -y && apt-get install -y --no-install-recommends git python3 \
-    && ln -s /usr/bin/python3 /usr/bin/python
 
 # Build CouchDB
 COPY search-diff-$COUCHDB_VERSION.patch /usr/src
@@ -49,17 +53,25 @@ RUN cd /usr/src && mkdir couchdb \
 RUN sed -i 's/;*bind_address = 127.0.0.1/bind_address = 0.0.0.0/' /usr/src/couchdb/rel/overlay/etc/local.ini \
   && sed -i 's/;*admin = mysecretpassword/admin = admin/g' /usr/src/couchdb/rel/overlay/etc/local.ini
 
+# Install JDK 6 & Maven
+RUN JAVA_BIN=ibm-java-x86_64-sdk-6.0-16.50.bin \
+  && curl https://s3.amazonaws.com/kapmug-devops/$JAVA_BIN -o $JAVA_BIN \
+  && chmod +x $JAVA_BIN \
+  && ln -s /lib/x86_64-linux-gnu/libc.so.6 /lib/libc.so.6 \
+  && printf "USER_INSTALL_DIR=/opt/java\nLICENSE_ACCEPTED=TRUE" > installer.properties \
+  && ./$JAVA_BIN -i silent -f installer.properties \
+  && rm -f $JAVA_BIN \
+  && update-alternatives --install /usr/bin/java java /opt/java/bin/java 100 \
+  && update-alternatives --install /usr/bin/javac javac /opt/java/bin/javac 100 \
+  && curl -fsSL http://archive.apache.org/dist/maven/maven-3/$MAVEN_VERSION/binaries/apache-maven-$MAVEN_VERSION-bin.tar.gz | tar xzf - -C /usr/share \
+  && mv /usr/share/apache-maven-$MAVEN_VERSION /usr/share/maven \
+  && ln -s /usr/share/maven/bin/mvn /usr/bin/mvn
+
 # Install Clouseau
-RUN apt-get update -y && apt-get install -y --no-install-recommends maven \
-  && rm -rf /var/lib/apt/lists/* \
-  && cd /usr/src \
+RUN cd /usr/src \
   && git clone https://github.com/cloudant-labs/clouseau \
   && cd clouseau \
   && mvn clean install -DskipTests
-
-# Install HAproxy & supervisor
-RUN apt-get update -y && apt-get install -y --no-install-recommends Haproxy supervisor
-COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 WORKDIR /usr/src/couchdb
 

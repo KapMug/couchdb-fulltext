@@ -1,4 +1,4 @@
-# couchdb-lucene
+# couchdb-fulltext
 
 This is a Docker image for CouchDB with full text search.
 
